@@ -1,0 +1,80 @@
+{
+  "fill" : {
+    "linear-gradient" : [
+      "srgb:0.26959,0.00000,0.63287,1.00000",
+      "srgb:0.82346,0.82346,0.82346,1.00000"
+    ],
+    "orientation" : {
+      "start" : {
+        "x" : 0.5,
+        "y" : 0
+      },
+      "stop" : {
+        "x" : 0.5,
+        "y" : 0.7
+      }
+    }
+  },
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "blend-mode" : "hard-light",
+          "glass" : true,
+          "image-name" : "man-emoji-6765 2.png",
+          "name" : "man-emoji-6765 2",
+          "position" : {
+            "scale" : 1.24,
+            "translation-in-points" : [
+              25.333016129807106,
+              22.94000000000011
+            ]
+          }
+        },
+        {
+          "blend-mode" : "normal",
+          "fill" : {
+            "linear-gradient" : [
+              "display-p3:0.52914,0.50893,0.56081,1.00000",
+              "display-p3:0.24277,0.02378,0.60827,1.00000"
+            ],
+            "orientation" : {
+              "start" : {
+                "x" : 0.5,
+                "y" : 0
+              },
+              "stop" : {
+                "x" : 0.5,
+                "y" : 0.7
+              }
+            }
+          },
+          "image-name" : "man-emoji-6765.png",
+          "name" : "man-emoji-6765",
+          "opacity" : 1,
+          "position" : {
+            "scale" : 1.2,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}
