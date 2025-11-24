@@ -15,11 +15,17 @@ final class Pet {
     var name: String
     @Attribute(.externalStorage) var photo: Data?
     var sortOrder: Int
+    var dateAdded: Date
+    var notes: String
+    var isFavorite: Bool
     
     init(name: String, photo: Data? = nil, sortOrder: Int = 0) {
         self.name = name
         self.photo = photo
         self.sortOrder = sortOrder
+        self.dateAdded = Date()
+        self.notes = ""
+        self.isFavorite = false
     }
 }
 
