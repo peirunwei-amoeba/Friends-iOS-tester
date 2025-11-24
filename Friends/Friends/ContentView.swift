@@ -55,7 +55,10 @@ struct ContentView: View {
         
         // Apply search filter
         if !searchText.isEmpty {
-            result = result.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+            result = result.filter { 
+                $0.name.localizedCaseInsensitiveContains(searchText) ||
+                $0.phoneNumber.localizedCaseInsensitiveContains(searchText)
+            }
         }
         
         // Apply favorites filter
@@ -107,7 +110,8 @@ struct ContentView: View {
         let duplicate = Pet(
             name: "\(original.name) Copy",
             photo: original.photo,
-            sortOrder: pets.count
+            sortOrder: pets.count,
+            phoneNumber: original.phoneNumber
         )
         modelContext.insert(duplicate)
         path = [duplicate]
@@ -356,6 +360,12 @@ struct ContentView: View {
             .navigationTitle("Friends")
             .navigationDestination(for: Pet.self, destination: EditPetView.init)
             .searchable(text: $searchText, prompt: "Search friends")
+            .onAppear {
+                print("📊 ContentView appeared. Total pets: \(pets.count)")
+                for pet in pets {
+                    print("  - \(pet.name) (phone: \(pet.phoneNumber))")
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {

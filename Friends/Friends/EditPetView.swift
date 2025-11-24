@@ -13,9 +13,16 @@ import PhotosUI
 
 struct EditPetView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     @Bindable var pet: Pet
     @State private var photosPickerItem: PhotosPickerItem?
     @State private var originalName: String = ""
+    @FocusState private var focusedField: Field?
+    
+    enum Field {
+        case name
+        case phoneNumber
+    }
     
     var body: some View {
         Form{
@@ -59,9 +66,41 @@ struct EditPetView: View {
                         .fill(.background)
                         .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
                 )
+                .listRowSeparator(.hidden)
+                .focused($focusedField, equals: .name)
+                .submitLabel(.next)
+                .onSubmit {
+                    focusedField = .phoneNumber
+                }
+            
+            // MARK: - PHONE NUMBER
+            TextField("Phone Number (Optional)", text: $pet.phoneNumber)
+                .textFieldStyle(.automatic)
+                .font(.title3)
+                .keyboardType(.phonePad)
+                .padding(.vertical, 12)
+                .padding(.horizontal, 16)
+                .background(
+                    Capsule()
+                        .fill(.background)
+                        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                )
+                .listRowSeparator(.hidden)
+                .focused($focusedField, equals: .phoneNumber)
             
             // MARK: - BUTTON
             Button {
+                // Dismiss keyboard first
+                focusedField = nil
+                
+                // Explicitly save the context
+                do {
+                    try modelContext.save()
+                    print("Successfully saved pet: \(pet.name)")
+                } catch {
+                    print("Error saving context: \(error)")
+                }
+                
                 dismiss()
             }label: {
                 Text("Save")
@@ -82,15 +121,31 @@ struct EditPetView: View {
             
         }
         .padding(.bottom)
-        
-        
         .listStyle(.plain)
         .navigationTitle("Edit \(pet.name)")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             originalName = pet.name
         }
-        .navigationBarBackButtonHidden()
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button("Cancel") {
+                    // If this is a new pet with default name, delete it
+                    if pet.name == "Best Friend" && originalName == "Best Friend" {
+                        modelContext.delete(pet)
+                    }
+                    dismiss()
+                }
+            }
+            
+            // Add keyboard dismiss button when keyboard is active
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") {
+                    focusedField = nil
+                }
+            }
+        }
         .onChange(of: photosPickerItem) {
             Task {
                 pet.photo = try? await photosPickerItem?.loadTransferable(type: Data.self)

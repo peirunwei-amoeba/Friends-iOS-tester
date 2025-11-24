@@ -15,7 +15,7 @@ struct FriendsApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .modelContainer(for: Pet.self)
         }
+        .modelContainer(for: Pet.self)
     }
 }
