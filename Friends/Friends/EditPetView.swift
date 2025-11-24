@@ -25,7 +25,7 @@ struct EditPetView: View {
     }
     
     var body: some View {
-        Form{
+        Form {
             // MARK: - IMAGE
             if let imageData = pet.photo {
                 if let image = UIImage(data: imageData) {
@@ -102,7 +102,7 @@ struct EditPetView: View {
                 }
                 
                 dismiss()
-            }label: {
+            } label: {
                 Text("Save")
                     .font(.title3.weight(.medium))
                     .padding(8)
@@ -119,8 +119,15 @@ struct EditPetView: View {
             .animation(.easeInOut(duration: 0.3), value: pet.name != originalName)
             //.disabled(pet.name == originalName)
             
+            // Add bottom spacer for better scrolling experience
+            Color.clear
+                .frame(height: 100)
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+            
         }
-        .padding(.bottom)
+        .scrollContentBackground(.hidden)
+        .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .listStyle(.plain)
         .navigationTitle("Edit \(pet.name)")
         .navigationBarTitleDisplayMode(.inline)
@@ -144,6 +151,8 @@ struct EditPetView: View {
                 Button("Done") {
                     focusedField = nil
                 }
+                .fontWeight(.bold)
+                .tint(.blue)
             }
         }
         .onChange(of: photosPickerItem) {

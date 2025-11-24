@@ -133,7 +133,7 @@ struct ContentView: View {
             if let image = UIImage(data: imageData) {
                 Image(uiImage: image)
                     .resizable()
-                    .scaledToFill() // Changed from scaledToFit for better appearance
+                    .scaledToFill()
                     .frame(height: 200)
                     .clipped()
                     .clipShape(RoundedRectangle(cornerRadius: 40, style: .continuous))
@@ -146,12 +146,14 @@ struct ContentView: View {
                 .foregroundStyle(.quaternary)
                 .frame(height: 200)
         }
-        Spacer()
+        
         Text(pet.name)
             .font(.title.weight(.light))
-            .padding(.vertical)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 20)
             .lineLimit(2)
             .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
     }
     
     @ViewBuilder
@@ -159,8 +161,9 @@ struct ContentView: View {
         Button {
             path = [pet]
         } label: {
-            VStack {
+            VStack(spacing: 0) {
                 petCardContent(for: pet)
+                Spacer()
             }
             .frame(minWidth: 0, maxWidth: .infinity, minHeight: 280, maxHeight: .infinity)
             .background(.ultraThinMaterial)
