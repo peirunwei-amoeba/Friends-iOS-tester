@@ -19,23 +19,82 @@ struct ContentView: View {
     @State private var isEditing: Bool = false
     @State private var draggingPet: Pet?
     @State private var searchText = ""
+    @State private var selectedSort: SortOption = .custom
+    @State private var showFavoritesOnly = false
+    @State private var selectedPetForQuickView: Pet?
     
     // Haptic feedback generators
     private let impactLight = UIImpactFeedbackGenerator(style: .light)
     private let impactMedium = UIImpactFeedbackGenerator(style: .medium)
     private let selectionFeedback = UISelectionFeedbackGenerator()
     
+    enum SortOption: String, CaseIterable, Identifiable {
+        case custom = "Custom Order"
+        case name = "Name"
+        case dateAdded = "Date Added"
+        case favorites = "Favorites First"
+        
+        var id: String { rawValue }
+        var icon: String {
+            switch self {
+            case .custom: return "line.3.horizontal"
+            case .name: return "textformat.abc"
+            case .dateAdded: return "calendar"
+            case .favorites: return "heart.fill"
+            }
+        }
+    }
+    
     // Adaptive layout that responds to device size and orientation
     private var adaptiveColumns: [GridItem] {
         [GridItem(.adaptive(minimum: 160, maximum: 220), spacing: 16)]
     }
     
-    var filteredPets: [Pet] {
-        if searchText.isEmpty {
-            return pets
-        } else {
-            return pets.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+    var filteredAndSortedPets: [Pet] {
+        var result = pets
+        
+        // Apply search filter
+        if !searchText.isEmpty {
+            result = result.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
         }
+        
+        // Apply favorites filter
+        if showFavoritesOnly {
+            result = result.filter { $0.isFavorite }
+        }
+        
+        // Apply sorting
+        switch selectedSort {
+        case .custom:
+            result = result.sorted { $0.sortOrder < $1.sortOrder }
+        case .name:
+            result = result.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        case .dateAdded:
+            result = result.sorted { $0.dateAdded > $1.dateAdded }
+        case .favorites:
+            result = result.sorted { 
+                if $0.isFavorite == $1.isFavorite {
+                    return $0.sortOrder < $1.sortOrder
+                }
+                return $0.isFavorite && !$1.isFavorite
+            }
+        }
+        
+        return result
+    }
+    
+    var favoriteCount: Int {
+        pets.filter { $0.isFavorite }.count
+    }
+    
+    var statisticsText: String {
+        if pets.isEmpty { return "" }
+        let total = pets.count
+        let favorites = favoriteCount
+        if favorites > 0 {
+            return "\(total) friend\(total == 1 ? "" : "s") • \(favorites) favorite\(favorites == 1 ? "" : "s")"
+        }
+        return "\(total) friend\(total == 1 ? "" : "s")"
     }
     
     func addPet() {
@@ -93,7 +152,9 @@ struct ContentView: View {
     
     @ViewBuilder
     private func petCard(for pet: Pet) -> some View {
-        NavigationLink(value: pet) {
+        Button {
+            path = [pet]
+        } label: {
             VStack {
                 petCardContent(for: pet)
             }
@@ -103,11 +164,12 @@ struct ContentView: View {
             .shadow(color: .black.opacity(isEditing ? 0.05 : 0.08), radius: 8, x: 0, y: 4)
             .scaleEffect(draggingPet == pet && isEditing ? 0.95 : 1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isEditing)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: draggingPet == pet)
             .overlay(alignment: .topTrailing) {
                 if isEditing {
                     Button(role: .destructive) {
                         impactMedium.impactOccurred()
-                        withAnimation {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
                             modelContext.delete(pet)
                         }
                     } label: {
@@ -124,14 +186,26 @@ struct ContentView: View {
                 }
             }
             .overlay(alignment: .topLeading) {
-                if pet.isFavorite {
-                    Image(systemName: "heart.fill")
+                // Always-visible favorite button
+                Button {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+                        pet.isFavorite.toggle()
+                    }
+                    impactLight.impactOccurred()
+                } label: {
+                    Image(systemName: pet.isFavorite ? "heart.fill" : "heart")
                         .font(.title3)
-                        .foregroundStyle(.red)
-                        .padding(12)
-                        .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
-                        .transition(.scale.combined(with: .opacity))
+                        .foregroundStyle(pet.isFavorite ? .red : .primary)
+                        .padding(10)
+                        .background {
+                            Circle()
+                                .fill(.ultraThinMaterial)
+                                .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+                        }
+                        .symbolEffect(.bounce, value: pet.isFavorite)
                 }
+                .padding(8)
+                .buttonStyle(.plain)
             }
             .overlay {
                 // Visual indicator for draggable state
@@ -142,7 +216,7 @@ struct ContentView: View {
                 }
             }
         }
-        .buttonStyle(.plain) // Prevents default button animation interference
+        .buttonStyle(.plain)
         .foregroundStyle(.primary)
         .accessibilityLabel("Card for \(pet.name)")
         .accessibilityHint(isEditing ? "Double tap to edit, drag to reorder" : "Double tap to view details")
@@ -154,7 +228,7 @@ struct ContentView: View {
             }
             
             Button {
-                withAnimation {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
                     pet.isFavorite.toggle()
                 }
                 selectionFeedback.selectionChanged()
@@ -191,21 +265,93 @@ struct ContentView: View {
     var body: some View {
         NavigationStack(path: $path) {
             ScrollView {
-                LazyVGrid(columns: adaptiveColumns, spacing: 16) {
-                    ForEach(filteredPets) { pet in
-                        petCard(for: pet)
-                            .opacity(draggingPet == pet && isEditing ? 0.5 : 1.0)
-                            .animation(.easeInOut(duration: 0.2), value: draggingPet == pet)
-                            .onDrop(of: [.url], delegate: PetDropDelegate(
-                                pet: pet,
-                                pets: pets,
-                                draggingPet: $draggingPet,
-                                isEditing: isEditing,
-                                modelContext: modelContext
-                            ))
+                VStack(spacing: 16) {
+                    // Statistics and Filter Bar
+                    if !pets.isEmpty {
+                        HStack(spacing: 12) {
+                            // Statistics
+                            HStack(spacing: 6) {
+                                Image(systemName: "person.2.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text(statisticsText)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(.ultraThinMaterial, in: Capsule())
+                            
+                            Spacer()
+                            
+                            // Sort Menu
+                            Menu {
+                                Picker("Sort By", selection: $selectedSort) {
+                                    ForEach(SortOption.allCases) { option in
+                                        Label(option.rawValue, systemImage: option.icon)
+                                            .tag(option)
+                                    }
+                                }
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: selectedSort.icon)
+                                        .font(.caption)
+                                    Text(selectedSort == .custom ? "Sort" : selectedSort.rawValue)
+                                        .font(.caption)
+                                        .lineLimit(1)
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(.ultraThinMaterial, in: Capsule())
+                                .foregroundStyle(.primary)
+                            }
+                            .onChange(of: selectedSort) { _, _ in
+                                selectionFeedback.selectionChanged()
+                            }
+                            
+                            // Favorites Filter Toggle
+                            Button {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    showFavoritesOnly.toggle()
+                                }
+                                selectionFeedback.selectionChanged()
+                            } label: {
+                                Image(systemName: showFavoritesOnly ? "heart.fill" : "heart")
+                                    .font(.caption)
+                                    .frame(width: 28, height: 28)
+                                    .background(showFavoritesOnly ? Color.red.opacity(0.2) : Color.clear)
+                                    .clipShape(Circle())
+                                    .overlay {
+                                        Circle()
+                                            .strokeBorder(showFavoritesOnly ? Color.red : Color.secondary.opacity(0.3), lineWidth: 1.5)
+                                    }
+                            }
+                            .foregroundStyle(showFavoritesOnly ? .red : .secondary)
+                        }
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+                        .transition(.move(edge: .top).combined(with: .opacity))
                     }
+                    
+                    // Grid
+                    LazyVGrid(columns: adaptiveColumns, spacing: 16) {
+                        ForEach(filteredAndSortedPets) { pet in
+                            petCard(for: pet)
+                                .opacity(draggingPet == pet && isEditing ? 0.5 : 1.0)
+                                .animation(.easeInOut(duration: 0.2), value: draggingPet == pet)
+                                .transition(.scale.combined(with: .opacity))
+                                .onDrop(of: [.url], delegate: PetDropDelegate(
+                                    pet: pet,
+                                    pets: pets,
+                                    draggingPet: $draggingPet,
+                                    isEditing: isEditing,
+                                    modelContext: modelContext
+                                ))
+                        }
+                    }
+                    .padding(.horizontal)
+                    .animation(.spring(response: 0.4, dampingFraction: 0.75), value: filteredAndSortedPets.map { $0.id })
                 }
-                .padding(.horizontal)
             }
             .navigationTitle("Friends")
             .navigationDestination(for: Pet.self, destination: EditPetView.init)
@@ -230,13 +376,19 @@ struct ContentView: View {
             }
             .safeAreaInset(edge: .top) {
                 if isEditing {
-                    Text("Drag cards to reorder")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.vertical, 8)
-                        .frame(maxWidth: .infinity)
-                        .background(.ultraThinMaterial)
-                        .transition(.move(edge: .top).combined(with: .opacity))
+                    HStack(spacing: 8) {
+                        Image(systemName: "hand.draw.fill")
+                            .font(.caption)
+                            .foregroundStyle(.blue)
+                        Text("Drag cards to reorder")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity)
+                    .background(.blue.opacity(0.1))
+                    .background(.ultraThinMaterial)
+                    .transition(.move(edge: .top).combined(with: .opacity))
                 }
             }
             .overlay {
@@ -249,6 +401,22 @@ struct ContentView: View {
                         Button("Add Friend", systemImage: "plus.circle.fill", action: addPet)
                             .buttonStyle(.borderedProminent)
                             .controlSize(.large)
+                    }
+                } else if filteredAndSortedPets.isEmpty {
+                    ContentUnavailableView {
+                        Label(showFavoritesOnly ? "No Favorite Friends" : "No Results", 
+                              systemImage: showFavoritesOnly ? "heart.slash" : "magnifyingglass")
+                    } description: {
+                        Text(showFavoritesOnly ? "Mark some friends as favorites to see them here." : "Try adjusting your search.")
+                    } actions: {
+                        if showFavoritesOnly {
+                            Button("Show All Friends") {
+                                withAnimation {
+                                    showFavoritesOnly = false
+                                }
+                            }
+                            .buttonStyle(.borderedProminent)
+                        }
                     }
                 }
             }
