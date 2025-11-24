@@ -12,6 +12,7 @@ import SwiftData
 import PhotosUI
 
 struct EditPetView: View {
+    @Environment(\.dismiss) private var dismiss
     @Bindable var pet: Pet
     @State private var photosPickerItem: PhotosPickerItem?
     @State private var originalName: String = ""
@@ -25,7 +26,7 @@ struct EditPetView: View {
                         .resizable()
                         .scaledToFill()
                         .frame(width: 250, height: 250)
-                        .clipShape(Circle())
+                        .clipShape(RoundedRectangle(cornerRadius: 40, style: .continuous))
                         .frame(maxWidth: .infinity)
                     
                 }
@@ -61,7 +62,7 @@ struct EditPetView: View {
             
             // MARK: - BUTTON
             Button {
-                
+                dismiss()
             }label: {
                 Text("Save")
                     .font(.title3.weight(.medium))
@@ -89,6 +90,7 @@ struct EditPetView: View {
         .onAppear {
             originalName = pet.name
         }
+        .navigationBarBackButtonHidden()
         .onChange(of: photosPickerItem) {
             Task {
                 pet.photo = try? await photosPickerItem?.loadTransferable(type: Data.self)

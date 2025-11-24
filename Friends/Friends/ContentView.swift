@@ -14,7 +14,8 @@ struct ContentView: View {
     @Environment(\.modelContext) var modelContext
     @Query private var pets: [Pet]
     
-    @State private var path = 
+    @State private var path = [Pet]()
+    @State private var isEditing: Bool = false
     
     let layout = [
         GridItem(.flexible(minimum: 120)),
@@ -24,19 +25,23 @@ struct ContentView: View {
     func addPet() {
         let pet = Pet(name: "Best Friend")
         modelContext.insert(pet)
+        path = [pet]
     }
     
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             ScrollView {
                 LazyVGrid(columns: layout) {
                     GridRow {
                         ForEach(pets) { pet in
-                            NavigationLink(destination: EmptyView()) {
+                            NavigationLink(value: pet) {
                                 VStack {
                                     if let imageData = pet.photo {
                                         if let image = UIImage(data: imageData) {
                                             Image(uiImage: image)
+                                                .resizable()
+                                                .scaledToFit()
+                                                .clipShape(RoundedRectangle(cornerRadius: 40, style: .continuous))
                                         }
                                     } else {
                                         Image(systemName: "person.fill")
@@ -61,7 +66,20 @@ struct ContentView: View {
                 
             }
         .navigationTitle(pets.isEmpty ? "" : "Friends")
+        .navigationDestination(for: Pet.self, destination: EditPetView.init)
         .toolbar{
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    withAnimation {
+                        isEditing.toggle()
+                    }
+                } label: {
+                    Image(systemName)
+                        
+                    }
+                }
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Add a New Pet", systemImage: "plus.circle", action: addPet)
             }
