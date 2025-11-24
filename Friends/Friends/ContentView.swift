@@ -129,31 +129,77 @@ struct ContentView: View {
     
     @ViewBuilder
     private func petCardContent(for pet: Pet) -> some View {
-        if let imageData = pet.photo {
-            if let image = UIImage(data: imageData) {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(height: 200)
-                    .clipped()
-                    .clipShape(RoundedRectangle(cornerRadius: 40, style: .continuous))
+        GeometryReader { geometry in
+            if let imageData = pet.photo {
+                if let image = UIImage(data: imageData) {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: geometry.size.width, height: 200)
+                        .clipped()
+                        .clipShape(RoundedRectangle(cornerRadius: 40, style: .continuous))
+                }
+            } else {
+                // Show initials with colored circular background (iOS Contacts style)
+                VStack {
+                    Spacer()
+                    InitialsProfileView(name: pet.name, size: 120)
+                    Spacer()
+                }
+                .frame(width: geometry.size.width, height: 200)
             }
-        } else {
-            Image(systemName: "person.fill")
-                .resizable()
-                .scaledToFit()
-                .padding(40)
-                .foregroundStyle(.quaternary)
-                .frame(height: 200)
         }
+        .frame(height: 200)
         
         Text(pet.name)
             .font(.title.weight(.light))
             .padding(.horizontal, 12)
-            .padding(.vertical, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 8)
             .lineLimit(2)
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
+        
+        // Call button area - always reserve the space for consistency
+        ZStack {
+            // Call button for pets with phone numbers
+            if !pet.phoneNumber.isEmpty {
+                Button {
+                    callPhoneNumber(pet.phoneNumber)
+                    impactMedium.impactOccurred()
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "phone.fill")
+                            .font(.caption)
+                        Text("Call")
+                            .font(.caption.weight(.semibold))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(
+                        Capsule()
+                            .fill(.green.gradient)
+                    )
+                }
+                .buttonStyle(.plain)
+                .transition(.scale.combined(with: .opacity))
+            }
+        }
+        .frame(height: 40) // Fixed height to maintain consistency
+        .padding(.bottom, 8)
+    }
+    
+    // Helper function to make phone calls
+    private func callPhoneNumber(_ phoneNumber: String) {
+        // Clean the phone number (remove spaces, dashes, etc.)
+        let cleanedNumber = phoneNumber.components(separatedBy: CharacterSet.decimalDigits.inverted).joined()
+        
+        if let url = URL(string: "tel://\(cleanedNumber)") {
+            if UIApplication.shared.canOpenURL(url) {
+                UIApplication.shared.open(url)
+            }
+        }
     }
     
     @ViewBuilder

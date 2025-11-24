@@ -10,6 +10,8 @@
 import SwiftUI
 import SwiftData
 import PhotosUI
+import Contacts
+import ContactsUI
 
 struct EditPetView: View {
     @Environment(\.dismiss) private var dismiss
@@ -17,6 +19,7 @@ struct EditPetView: View {
     @Bindable var pet: Pet
     @State private var photosPickerItem: PhotosPickerItem?
     @State private var originalName: String = ""
+    @State private var showingContactPicker = false
     @FocusState private var focusedField: Field?
     
     enum Field {
@@ -38,11 +41,10 @@ struct EditPetView: View {
                     
                 }
             } else {
-                CustomContentUnavailableView(
-                    icon: "person.fill.badge.plus", title: "No Photo Yet!", description: "Add a photo of your good friend below to make them stand out!"
-                )
-                
-                .padding(.top)
+                // Show initials with colored circular background - matching ContentView style
+                InitialsProfileView(name: pet.name, size: 250)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top)
             }
             // MARK: - PHOTO PICKER
             PhotosPicker(selection: $photosPickerItem, matching: .images) {
@@ -50,6 +52,19 @@ struct EditPetView: View {
                     Image(systemName: "photo.badge.plus")
                         .foregroundStyle(.tint)
                     Text("Select a Photo")
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .listRowSeparator(.hidden)
+            
+            // MARK: - CONTACT PICKER BUTTON
+            Button {
+                showingContactPicker = true
+            } label: {
+                HStack {
+                    Image(systemName: "person.crop.circle.badge.plus")
+                        .foregroundStyle(.tint)
+                    Text("Import from Contacts")
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -160,6 +175,131 @@ struct EditPetView: View {
                 pet.photo = try? await photosPickerItem?.loadTransferable(type: Data.self)
             }
         }
+        .sheet(isPresented: $showingContactPicker) {
+            ContactPicker(pet: pet)
+        }
+    }
+}
+
+// MARK: - Contact Picker
+struct ContactPicker: UIViewControllerRepresentable {
+    @Bindable var pet: Pet
+    @Environment(\.dismiss) private var dismiss
+    
+    func makeUIViewController(context: Context) -> CNContactPickerViewController {
+        let picker = CNContactPickerViewController()
+        picker.delegate = context.coordinator
+        return picker
+    }
+    
+    func updateUIViewController(_ uiViewController: CNContactPickerViewController, context: Context) {}
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject, CNContactPickerDelegate {
+        var parent: ContactPicker
+        
+        init(_ parent: ContactPicker) {
+            self.parent = parent
+        }
+        
+        func contactPicker(_ picker: CNContactPickerViewController, didSelect contact: CNContact) {
+            // Import name
+            let fullName = "\(contact.givenName) \(contact.familyName)".trimmingCharacters(in: .whitespaces)
+            if !fullName.isEmpty {
+                parent.pet.name = fullName
+            }
+            
+            // Import phone number
+            if let phoneNumber = contact.phoneNumbers.first?.value.stringValue {
+                parent.pet.phoneNumber = phoneNumber
+            }
+            
+            // Import profile picture - if contact has one, use it
+            // Otherwise, the InitialsProfileView will automatically generate initials
+            if let imageData = contact.imageData {
+                parent.pet.photo = imageData
+            } else {
+                // Generate an image from initials to match iOS Contacts style
+                let name = fullName.isEmpty ? parent.pet.name : fullName
+                let initialsImage = Self.generateInitialsImage(for: name)
+                parent.pet.photo = initialsImage.pngData()
+            }
+            
+            parent.dismiss()
+        }
+        
+        func contactPickerDidCancel(_ picker: CNContactPickerViewController) {
+            parent.dismiss()
+        }
+        
+        // Helper function to generate an image with initials matching iOS Contacts style
+        static func generateInitialsImage(for name: String) -> UIImage {
+            let size: CGFloat = 500 // High resolution for quality
+            let renderer = UIGraphicsImageRenderer(size: CGSize(width: size, height: size))
+            
+            // Generate initials
+            let components = name.split(separator: " ")
+            let initials: String
+            if components.isEmpty {
+                initials = "?"
+            } else if components.count == 1 {
+                initials = String(components[0].prefix(1)).uppercased()
+            } else {
+                let first = components.first?.prefix(1) ?? ""
+                let last = components.last?.prefix(1) ?? ""
+                initials = "\(first)\(last)".uppercased()
+            }
+            
+            // Generate consistent color based on name (matching InitialsProfileView)
+            let hash = abs(name.hashValue)
+            let colors: [UIColor] = [
+                .systemBlue, .systemGreen, .systemOrange, .systemPurple,
+                .systemPink, .systemRed, .systemIndigo, .systemTeal,
+                .systemCyan, .systemMint
+            ]
+            let backgroundColor = colors[hash % colors.count]
+            
+            return renderer.image { context in
+                // Draw circular background
+                let rect = CGRect(x: 0, y: 0, width: size, height: size)
+                backgroundColor.setFill()
+                let circlePath = UIBezierPath(ovalIn: rect)
+                circlePath.fill()
+                
+                // Draw initials with rounded font
+                let paragraphStyle = NSMutableParagraphStyle()
+                paragraphStyle.alignment = .center
+                
+                let attributes: [NSAttributedString.Key: Any] = [
+                    .font: UIFont.systemFont(ofSize: size * 0.4, weight: .regular).rounded(),
+                    .foregroundColor: UIColor.white,
+                    .paragraphStyle: paragraphStyle
+                ]
+                
+                let attributedString = NSAttributedString(string: initials, attributes: attributes)
+                let stringSize = attributedString.size()
+                let stringRect = CGRect(
+                    x: (size - stringSize.width) / 2,
+                    y: (size - stringSize.height) / 2,
+                    width: stringSize.width,
+                    height: stringSize.height
+                )
+                attributedString.draw(in: stringRect)
+            }
+        }
+    }
+}
+
+// Extension to get rounded font
+extension UIFont {
+    func rounded() -> UIFont {
+        guard let descriptor = fontDescriptor.withDesign(.rounded) else {
+            return self
+        }
+        return UIFont(descriptor: descriptor, size: pointSize)
     }
 }
 
