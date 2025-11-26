@@ -129,8 +129,8 @@ struct ContentView: View {
     @ViewBuilder
     private func petCardContent(for pet: Pet) -> some View {
         VStack(spacing: 0) {
-            // Top spacer for vertical centering
-            Spacer(minLength: 12)
+            // Top spacer for vertical centering - increased to account for favorite button
+            Spacer(minLength: 36)
             
             // Profile image area - fixed height
             if let imageData = pet.photo {
@@ -158,7 +158,7 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity)
             
             // Middle spacer for vertical centering
-            Spacer(minLength: 12)
+            Spacer(minLength: 8)
             
             // Action buttons area - fixed height for consistency
             VStack(spacing: 0) {
