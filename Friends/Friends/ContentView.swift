@@ -130,29 +130,29 @@ struct ContentView: View {
     private func petCardContent(for pet: Pet) -> some View {
         VStack(spacing: 0) {
             // Top spacer for vertical centering - increased to account for favorite button
-            Spacer(minLength: 36)
+            Spacer(minLength: 38)
             
-            // Profile image area - fixed height
+            // Profile image area - fixed height (slightly smaller)
             if let imageData = pet.photo {
                 if let image = UIImage(data: imageData) {
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFill()
-                        .frame(width: 120, height: 120)
+                        .frame(width: 110, height: 110)
                         .clipShape(Circle())
                         .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
                 }
             } else {
                 // Show initials with colored circular background (iOS Contacts style)
-                InitialsProfileView(name: pet.name, size: 120)
+                InitialsProfileView(name: pet.name, size: 110)
                     .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
             }
             
-            // Name area - centered and bold
+            // Name area - centered and bold (slightly smaller padding)
             Text(pet.name)
-                .font(.system(.title2, design: .rounded, weight: .bold))
+                .font(.system(.title3, design: .rounded, weight: .bold))
                 .padding(.horizontal, 12)
-                .padding(.top, 16)
+                .padding(.top, 8)
                 .lineLimit(2)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
@@ -161,7 +161,7 @@ struct ContentView: View {
             Spacer(minLength: 8)
             
             // Action buttons area - fixed height for consistency
-            VStack(spacing: 0) {
+            VStack(spacing: 6) {
                 if !pet.phoneNumber.isEmpty {
                     HStack(spacing: 8) {
                         Button {
@@ -202,9 +202,39 @@ struct ContentView: View {
                     }
                     .padding(.horizontal, 12)
                     .transition(.scale.combined(with: .opacity))
+                    
+                    // FaceTime button
+                    Button {
+                        openFaceTime(for: pet.phoneNumber)
+                        impactMedium.impactOccurred()
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "video.fill")
+                                .font(.caption)
+                            Text("FaceTime")
+                                .font(.caption.weight(.semibold))
+                        }
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity)
+                        .background(
+                            Capsule()
+                                .fill(.orange.gradient)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 12)
+                    .transition(.scale.combined(with: .opacity))
+                } else {
+                    // No contact information message
+                    Text("No contact information")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 12)
                 }
             }
-            .frame(height: 50) // Fixed height for button area
+            .frame(height: 80) // Increased fixed height for button area to accommodate FaceTime button
             .padding(.bottom, 12)
         }
     }
@@ -226,6 +256,18 @@ struct ContentView: View {
         let cleanedNumber = phoneNumber.components(separatedBy: CharacterSet.decimalDigits.inverted).joined()
         
         if let url = URL(string: "tel://\(cleanedNumber)") {
+            if UIApplication.shared.canOpenURL(url) {
+                UIApplication.shared.open(url)
+            }
+        }
+    }
+    
+    // Helper function to open FaceTime
+    private func openFaceTime(for phoneNumber: String) {
+        // Clean the phone number (remove spaces, dashes, etc.)
+        let cleanedNumber = phoneNumber.components(separatedBy: CharacterSet.decimalDigits.inverted).joined()
+        
+        if let url = URL(string: "facetime:\(cleanedNumber)") {
             if UIApplication.shared.canOpenURL(url) {
                 UIApplication.shared.open(url)
             }
