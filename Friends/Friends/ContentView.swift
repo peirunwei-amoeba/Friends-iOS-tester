@@ -488,6 +488,8 @@ struct ContentView: View {
                     .buttonStyle(.borderedProminent)
                 }
             }
+        } else {
+            EmptyView()
         }
     }
     
@@ -505,14 +507,19 @@ struct ContentView: View {
     
     var body: some View {
         NavigationStack(path: $path) {
-            mainScrollView
-                .navigationTitle("Friends")
-                .navigationDestination(for: Pet.self, destination: EditPetView.init)
-                .searchable(text: $searchText, prompt: "Search friends")
-                .onAppear(perform: logPetsOnAppear)
-                .toolbar { toolbarContent }
-                .safeAreaInset(edge: .top) { editingBanner }
-                .overlay { emptyStateView }
+            Group {
+                if pets.isEmpty || filteredAndSortedPets.isEmpty {
+                    emptyStateView
+                } else {
+                    mainScrollView
+                }
+            }
+            .navigationTitle("Friends")
+            .navigationDestination(for: Pet.self, destination: EditPetView.init)
+            .searchable(text: $searchText, prompt: "Search friends")
+            .onAppear(perform: logPetsOnAppear)
+            .toolbar { toolbarContent }
+            .safeAreaInset(edge: .top) { editingBanner }
         }
     }
     
