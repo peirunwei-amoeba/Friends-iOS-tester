@@ -39,10 +39,10 @@ struct InitialsProfileView: View {
     var body: some View {
         ZStack {
             Circle()
-                .fill(backgroundColor)
+                .fill(backgroundColor.gradient)
             
             Text(initials)
-                .font(.system(size: size * 0.4, weight: .regular, design: .rounded))
+                .font(.system(size: size * 0.4, weight: .medium, design: .rounded))
                 .foregroundStyle(.white)
         }
         .frame(width: size, height: size)

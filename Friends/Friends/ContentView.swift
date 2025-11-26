@@ -130,29 +130,30 @@ struct ContentView: View {
     @ViewBuilder
     private func petCardContent(for pet: Pet) -> some View {
         GeometryReader { geometry in
-            if let imageData = pet.photo {
-                if let image = UIImage(data: imageData) {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: geometry.size.width, height: 200)
-                        .clipped()
-                        .clipShape(RoundedRectangle(cornerRadius: 40, style: .continuous))
-                }
-            } else {
-                // Show initials with colored circular background (iOS Contacts style)
-                VStack {
-                    Spacer()
+            VStack {
+                Spacer()
+                if let imageData = pet.photo {
+                    if let image = UIImage(data: imageData) {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 120, height: 120)
+                            .clipShape(Circle())
+                            .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                    }
+                } else {
+                    // Show initials with colored circular background (iOS Contacts style)
                     InitialsProfileView(name: pet.name, size: 120)
-                    Spacer()
+                        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
                 }
-                .frame(width: geometry.size.width, height: 200)
+                Spacer()
             }
+            .frame(width: geometry.size.width, height: 200)
         }
         .frame(height: 200)
         
         Text(pet.name)
-            .font(.title.weight(.light))
+            .font(.system(.title, design: .rounded, weight: .medium))
             .padding(.horizontal, 12)
             .padding(.top, 20)
             .padding(.bottom, 8)

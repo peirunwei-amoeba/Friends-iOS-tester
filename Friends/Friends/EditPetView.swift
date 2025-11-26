@@ -36,8 +36,9 @@ struct EditPetView: View {
                         .resizable()
                         .scaledToFill()
                         .frame(width: 250, height: 250)
-                        .clipShape(RoundedRectangle(cornerRadius: 40, style: .continuous))
+                        .clipShape(Circle())
                         .frame(maxWidth: .infinity)
+                        .padding(.top)
                     
                 }
             } else {
@@ -217,78 +218,15 @@ struct ContactPicker: UIViewControllerRepresentable {
                 parent.pet.phoneNumber = phoneNumber
             }
             
-            // Import profile picture - if contact has one, use it
-            // Otherwise, the InitialsProfileView will automatically generate initials
-            if let imageData = contact.imageData {
-                parent.pet.photo = imageData
-            } else {
-                // Generate an image from initials to match iOS Contacts style
-                let name = fullName.isEmpty ? parent.pet.name : fullName
-                let initialsImage = Self.generateInitialsImage(for: name)
-                parent.pet.photo = initialsImage.pngData()
-            }
+            // Always set photo to nil so InitialsProfileView displays with gradient background
+            // This ensures consistent styling across all contacts
+            parent.pet.photo = nil
             
             parent.dismiss()
         }
         
         func contactPickerDidCancel(_ picker: CNContactPickerViewController) {
             parent.dismiss()
-        }
-        
-        // Helper function to generate an image with initials matching iOS Contacts style
-        static func generateInitialsImage(for name: String) -> UIImage {
-            let size: CGFloat = 500 // High resolution for quality
-            let renderer = UIGraphicsImageRenderer(size: CGSize(width: size, height: size))
-            
-            // Generate initials
-            let components = name.split(separator: " ")
-            let initials: String
-            if components.isEmpty {
-                initials = "?"
-            } else if components.count == 1 {
-                initials = String(components[0].prefix(1)).uppercased()
-            } else {
-                let first = components.first?.prefix(1) ?? ""
-                let last = components.last?.prefix(1) ?? ""
-                initials = "\(first)\(last)".uppercased()
-            }
-            
-            // Generate consistent color based on name (matching InitialsProfileView)
-            let hash = abs(name.hashValue)
-            let colors: [UIColor] = [
-                .systemBlue, .systemGreen, .systemOrange, .systemPurple,
-                .systemPink, .systemRed, .systemIndigo, .systemTeal,
-                .systemCyan, .systemMint
-            ]
-            let backgroundColor = colors[hash % colors.count]
-            
-            return renderer.image { context in
-                // Draw circular background
-                let rect = CGRect(x: 0, y: 0, width: size, height: size)
-                backgroundColor.setFill()
-                let circlePath = UIBezierPath(ovalIn: rect)
-                circlePath.fill()
-                
-                // Draw initials with rounded font
-                let paragraphStyle = NSMutableParagraphStyle()
-                paragraphStyle.alignment = .center
-                
-                let attributes: [NSAttributedString.Key: Any] = [
-                    .font: UIFont.systemFont(ofSize: size * 0.4, weight: .regular).rounded(),
-                    .foregroundColor: UIColor.white,
-                    .paragraphStyle: paragraphStyle
-                ]
-                
-                let attributedString = NSAttributedString(string: initials, attributes: attributes)
-                let stringSize = attributedString.size()
-                let stringRect = CGRect(
-                    x: (size - stringSize.width) / 2,
-                    y: (size - stringSize.height) / 2,
-                    width: stringSize.width,
-                    height: stringSize.height
-                )
-                attributedString.draw(in: stringRect)
-            }
         }
     }
 }
