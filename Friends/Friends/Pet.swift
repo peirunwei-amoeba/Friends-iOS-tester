@@ -19,6 +19,7 @@ final class Pet {
     var notes: String
     var isFavorite: Bool
     var phoneNumber: String
+    var recentMessages: [MessageRecord] = []
     
     init(name: String, photo: Data? = nil, sortOrder: Int = 0, phoneNumber: String = "") {
         self.name = name
@@ -28,6 +29,25 @@ final class Pet {
         self.notes = ""
         self.isFavorite = false
         self.phoneNumber = phoneNumber
+        self.recentMessages = []
+    }
+}
+
+struct MessageRecord: Codable, Hashable, Identifiable {
+    let id: UUID
+    let message: String
+    let dateSent: Date
+    
+    init(message: String, dateSent: Date) {
+        self.id = UUID()
+        self.message = message
+        self.dateSent = dateSent
+    }
+    
+    var formattedDate: String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: dateSent, relativeTo: Date())
     }
 }
 

@@ -21,7 +21,6 @@ struct ContentView: View {
     @State private var searchText = ""
     @State private var selectedSort: SortOption = .custom
     @State private var showFavoritesOnly = false
-    @State private var selectedPetForQuickView: Pet?
     
     // Haptic feedback generators
     private let impactLight = UIImpactFeedbackGenerator(style: .light)
@@ -129,66 +128,96 @@ struct ContentView: View {
     
     @ViewBuilder
     private func petCardContent(for pet: Pet) -> some View {
-        GeometryReader { geometry in
-            VStack {
-                Spacer()
-                if let imageData = pet.photo {
-                    if let image = UIImage(data: imageData) {
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 120, height: 120)
-                            .clipShape(Circle())
-                            .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
-                    }
-                } else {
-                    // Show initials with colored circular background (iOS Contacts style)
-                    InitialsProfileView(name: pet.name, size: 120)
+        VStack(spacing: 0) {
+            // Top spacer for vertical centering
+            Spacer(minLength: 12)
+            
+            // Profile image area - fixed height
+            if let imageData = pet.photo {
+                if let image = UIImage(data: imageData) {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 120, height: 120)
+                        .clipShape(Circle())
                         .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
                 }
-                Spacer()
+            } else {
+                // Show initials with colored circular background (iOS Contacts style)
+                InitialsProfileView(name: pet.name, size: 120)
+                    .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
             }
-            .frame(width: geometry.size.width, height: 200)
-        }
-        .frame(height: 200)
-        
-        Text(pet.name)
-            .font(.system(.title, design: .rounded, weight: .medium))
-            .padding(.horizontal, 12)
-            .padding(.top, 20)
-            .padding(.bottom, 8)
-            .lineLimit(2)
-            .multilineTextAlignment(.center)
-            .frame(maxWidth: .infinity)
-        
-        // Call button area - always reserve the space for consistency
-        ZStack {
-            // Call button for pets with phone numbers
-            if !pet.phoneNumber.isEmpty {
-                Button {
-                    callPhoneNumber(pet.phoneNumber)
-                    impactMedium.impactOccurred()
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "phone.fill")
-                            .font(.caption)
-                        Text("Call")
-                            .font(.caption.weight(.semibold))
+            
+            // Name area - centered and bold
+            Text(pet.name)
+                .font(.system(.title2, design: .rounded, weight: .bold))
+                .padding(.horizontal, 12)
+                .padding(.top, 16)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+            
+            // Middle spacer for vertical centering
+            Spacer(minLength: 12)
+            
+            // Action buttons area - fixed height for consistency
+            VStack(spacing: 0) {
+                if !pet.phoneNumber.isEmpty {
+                    HStack(spacing: 8) {
+                        Button {
+                            callPhoneNumber(pet.phoneNumber)
+                            impactMedium.impactOccurred()
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "phone.fill")
+                                    .font(.caption)
+                                Text("Call")
+                                    .font(.caption.weight(.semibold))
+                            }
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .frame(maxWidth: .infinity)
+                            .background(
+                                Capsule()
+                                    .fill(.green.gradient)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        
+                        Button {
+                            openMessages(for: pet.phoneNumber)
+                            impactMedium.impactOccurred()
+                        } label: {
+                            Image(systemName: "message.fill")
+                                .font(.caption)
+                                .foregroundStyle(.white)
+                                .frame(width: 36, height: 36)
+                                .background(
+                                    Circle()
+                                        .fill(.blue.gradient)
+                                )
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(
-                        Capsule()
-                            .fill(.green.gradient)
-                    )
+                    .padding(.horizontal, 12)
+                    .transition(.scale.combined(with: .opacity))
                 }
-                .buttonStyle(.plain)
-                .transition(.scale.combined(with: .opacity))
+            }
+            .frame(height: 50) // Fixed height for button area
+            .padding(.bottom, 12)
+        }
+    }
+    
+    // Helper function to open Messages app
+    private func openMessages(for phoneNumber: String) {
+        let cleanedNumber = phoneNumber.components(separatedBy: CharacterSet.decimalDigits.inverted).joined()
+        
+        if let url = URL(string: "sms:\(cleanedNumber)") {
+            if UIApplication.shared.canOpenURL(url) {
+                UIApplication.shared.open(url)
             }
         }
-        .frame(height: 40) // Fixed height to maintain consistency
-        .padding(.bottom, 8)
     }
     
     // Helper function to make phone calls
@@ -212,7 +241,7 @@ struct ContentView: View {
                 petCardContent(for: pet)
                 Spacer()
             }
-            .frame(minWidth: 0, maxWidth: .infinity, minHeight: 280, maxHeight: .infinity)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(.ultraThinMaterial)
             .clipShape(RoundedRectangle(cornerRadius: 40, style: .continuous))
             .shadow(color: .black.opacity(isEditing ? 0.05 : 0.08), radius: 8, x: 0, y: 4)
@@ -316,170 +345,220 @@ struct ContentView: View {
         }
     }
     
+    // MARK: - Subviews
+    
+    @ViewBuilder
+    private var statisticsAndFilterBar: some View {
+        if !pets.isEmpty {
+            HStack(spacing: 12) {
+                // Statistics
+                HStack(spacing: 6) {
+                    Image(systemName: "person.2.fill")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(statisticsText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(.ultraThinMaterial, in: Capsule())
+                
+                Spacer()
+                
+                sortMenu
+                favoritesFilterButton
+            }
+            .padding(.horizontal)
+            .padding(.top, 8)
+            .transition(.move(edge: .top).combined(with: .opacity))
+        }
+    }
+    
+    @ViewBuilder
+    private var sortMenu: some View {
+        Menu {
+            Picker("Sort By", selection: $selectedSort) {
+                ForEach(SortOption.allCases) { option in
+                    Label(option.rawValue, systemImage: option.icon)
+                        .tag(option)
+                }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: selectedSort.icon)
+                    .font(.caption)
+                Text(selectedSort == .custom ? "Sort" : selectedSort.rawValue)
+                    .font(.caption)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(.ultraThinMaterial, in: Capsule())
+            .foregroundStyle(.primary)
+        }
+        .onChange(of: selectedSort) { _, _ in
+            selectionFeedback.selectionChanged()
+        }
+    }
+    
+    @ViewBuilder
+    private var favoritesFilterButton: some View {
+        Button {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                showFavoritesOnly.toggle()
+            }
+            selectionFeedback.selectionChanged()
+        } label: {
+            Image(systemName: showFavoritesOnly ? "heart.fill" : "heart")
+                .font(.caption)
+                .frame(width: 28, height: 28)
+                .background(showFavoritesOnly ? Color.red.opacity(0.2) : Color.clear)
+                .clipShape(Circle())
+                .overlay {
+                    Circle()
+                        .strokeBorder(showFavoritesOnly ? Color.red : Color.secondary.opacity(0.3), lineWidth: 1.5)
+                }
+        }
+        .foregroundStyle(showFavoritesOnly ? .red : .secondary)
+    }
+    
+    @ViewBuilder
+    private var petsGrid: some View {
+        // Use a vertical flow layout for dynamic sizing
+        FlowLayout(spacing: 16) {
+            ForEach(filteredAndSortedPets) { pet in
+                petCard(for: pet)
+                    .frame(width: cardWidth(for: pet), height: cardHeight(for: pet))
+                    .opacity(draggingPet == pet && isEditing ? 0.5 : 1.0)
+                    .animation(.easeInOut(duration: 0.2), value: draggingPet == pet)
+                    .transition(.scale.combined(with: .opacity))
+                    .onDrop(of: [.url], delegate: PetDropDelegate(
+                        pet: pet,
+                        pets: pets,
+                        draggingPet: $draggingPet,
+                        isEditing: isEditing,
+                        modelContext: modelContext
+                    ))
+            }
+        }
+        .padding(.horizontal)
+        .animation(.spring(response: 0.4, dampingFraction: 0.75), value: filteredAndSortedPets.map { $0.id })
+    }
+    
+    // Calculate card width based on screen size
+    private func cardWidth(for pet: Pet) -> CGFloat {
+        let screenWidth = UIScreen.main.bounds.width
+        let padding: CGFloat = 32 // horizontal padding
+        let spacing: CGFloat = 16
+        let columns: CGFloat = screenWidth > 800 ? 4 : (screenWidth > 600 ? 3 : 2)
+        return (screenWidth - padding - (spacing * (columns - 1))) / columns
+    }
+    
+    // Calculate card height
+    private func cardHeight(for pet: Pet) -> CGFloat {
+        return 280
+    }
+    
+    @ViewBuilder
+    private var emptyStateView: some View {
+        if pets.isEmpty {
+            ContentUnavailableView {
+                Label("No Friends Yet!", systemImage: "person.fill.badge.plus")
+            } description: {
+                Text("Add a new friend to get started!")
+            } actions: {
+                Button("Add Friend", systemImage: "plus.circle.fill", action: addPet)
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+            }
+        } else if filteredAndSortedPets.isEmpty {
+            ContentUnavailableView {
+                Label(showFavoritesOnly ? "No Favorite Friends" : "No Results", 
+                      systemImage: showFavoritesOnly ? "heart.slash" : "magnifyingglass")
+            } description: {
+                Text(showFavoritesOnly ? "Mark some friends as favorites to see them here." : "Try adjusting your search.")
+            } actions: {
+                if showFavoritesOnly {
+                    Button("Show All Friends") {
+                        withAnimation {
+                            showFavoritesOnly = false
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            }
+        }
+    }
+    
+    // MARK: - Body Subviews
+    
+    @ViewBuilder
+    private var mainScrollView: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                statisticsAndFilterBar
+                petsGrid
+            }
+        }
+    }
+    
     var body: some View {
         NavigationStack(path: $path) {
-            ScrollView {
-                VStack(spacing: 16) {
-                    // Statistics and Filter Bar
-                    if !pets.isEmpty {
-                        HStack(spacing: 12) {
-                            // Statistics
-                            HStack(spacing: 6) {
-                                Image(systemName: "person.2.fill")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Text(statisticsText)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(.ultraThinMaterial, in: Capsule())
-                            
-                            Spacer()
-                            
-                            // Sort Menu
-                            Menu {
-                                Picker("Sort By", selection: $selectedSort) {
-                                    ForEach(SortOption.allCases) { option in
-                                        Label(option.rawValue, systemImage: option.icon)
-                                            .tag(option)
-                                    }
-                                }
-                            } label: {
-                                HStack(spacing: 6) {
-                                    Image(systemName: selectedSort.icon)
-                                        .font(.caption)
-                                    Text(selectedSort == .custom ? "Sort" : selectedSort.rawValue)
-                                        .font(.caption)
-                                        .lineLimit(1)
-                                }
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(.ultraThinMaterial, in: Capsule())
-                                .foregroundStyle(.primary)
-                            }
-                            .onChange(of: selectedSort) { _, _ in
-                                selectionFeedback.selectionChanged()
-                            }
-                            
-                            // Favorites Filter Toggle
-                            Button {
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                    showFavoritesOnly.toggle()
-                                }
-                                selectionFeedback.selectionChanged()
-                            } label: {
-                                Image(systemName: showFavoritesOnly ? "heart.fill" : "heart")
-                                    .font(.caption)
-                                    .frame(width: 28, height: 28)
-                                    .background(showFavoritesOnly ? Color.red.opacity(0.2) : Color.clear)
-                                    .clipShape(Circle())
-                                    .overlay {
-                                        Circle()
-                                            .strokeBorder(showFavoritesOnly ? Color.red : Color.secondary.opacity(0.3), lineWidth: 1.5)
-                                    }
-                            }
-                            .foregroundStyle(showFavoritesOnly ? .red : .secondary)
-                        }
-                        .padding(.horizontal)
-                        .padding(.top, 8)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                    }
-                    
-                    // Grid
-                    LazyVGrid(columns: adaptiveColumns, spacing: 16) {
-                        ForEach(filteredAndSortedPets) { pet in
-                            petCard(for: pet)
-                                .opacity(draggingPet == pet && isEditing ? 0.5 : 1.0)
-                                .animation(.easeInOut(duration: 0.2), value: draggingPet == pet)
-                                .transition(.scale.combined(with: .opacity))
-                                .onDrop(of: [.url], delegate: PetDropDelegate(
-                                    pet: pet,
-                                    pets: pets,
-                                    draggingPet: $draggingPet,
-                                    isEditing: isEditing,
-                                    modelContext: modelContext
-                                ))
-                        }
-                    }
-                    .padding(.horizontal)
-                    .animation(.spring(response: 0.4, dampingFraction: 0.75), value: filteredAndSortedPets.map { $0.id })
+            mainScrollView
+                .navigationTitle("Friends")
+                .navigationDestination(for: Pet.self, destination: EditPetView.init)
+                .searchable(text: $searchText, prompt: "Search friends")
+                .onAppear(perform: logPetsOnAppear)
+                .toolbar { toolbarContent }
+                .safeAreaInset(edge: .top) { editingBanner }
+                .overlay { emptyStateView }
+        }
+    }
+    
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .topBarLeading) {
+            Button {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    isEditing.toggle()
                 }
+                impactMedium.impactOccurred()
+            } label: {
+                Label(isEditing ? "Done" : "Edit", systemImage: isEditing ? "checkmark.circle.fill" : "arrow.up.arrow.down.circle")
             }
-            .navigationTitle("Friends")
-            .navigationDestination(for: Pet.self, destination: EditPetView.init)
-            .searchable(text: $searchText, prompt: "Search friends")
-            .onAppear {
-                print("📊 ContentView appeared. Total pets: \(pets.count)")
-                for pet in pets {
-                    print("  - \(pet.name) (phone: \(pet.phoneNumber))")
-                }
+            .tint(isEditing ? .green : .primary)
+        }
+        
+        ToolbarItem(placement: .topBarTrailing) {
+            Button("Add a New Pet", systemImage: "plus.circle", action: addPet)
+                .disabled(isEditing)
+        }
+    }
+    
+    @ViewBuilder
+    private var editingBanner: some View {
+        if isEditing {
+            HStack(spacing: 8) {
+                Image(systemName: "hand.draw.fill")
+                    .font(.caption)
+                    .foregroundStyle(.blue)
+                Text("Drag cards to reorder")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                            isEditing.toggle()
-                        }
-                        impactMedium.impactOccurred()
-                    } label: {
-                        Label(isEditing ? "Done" : "Edit", systemImage: isEditing ? "checkmark.circle.fill" : "arrow.up.arrow.down.circle")
-                    }
-                    .tint(isEditing ? .green : .primary)
-                }
-                
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Add a New Pet", systemImage: "plus.circle", action: addPet)
-                        .disabled(isEditing)
-                }
-            }
-            .safeAreaInset(edge: .top) {
-                if isEditing {
-                    HStack(spacing: 8) {
-                        Image(systemName: "hand.draw.fill")
-                            .font(.caption)
-                            .foregroundStyle(.blue)
-                        Text("Drag cards to reorder")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.vertical, 8)
-                    .frame(maxWidth: .infinity)
-                    .background(.blue.opacity(0.1))
-                    .background(.ultraThinMaterial)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-                }
-            }
-            .overlay {
-                if pets.isEmpty {
-                    ContentUnavailableView {
-                        Label("No Friends Yet!", systemImage: "person.fill.badge.plus")
-                    } description: {
-                        Text("Add a new friend to get started!")
-                    } actions: {
-                        Button("Add Friend", systemImage: "plus.circle.fill", action: addPet)
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.large)
-                    }
-                } else if filteredAndSortedPets.isEmpty {
-                    ContentUnavailableView {
-                        Label(showFavoritesOnly ? "No Favorite Friends" : "No Results", 
-                              systemImage: showFavoritesOnly ? "heart.slash" : "magnifyingglass")
-                    } description: {
-                        Text(showFavoritesOnly ? "Mark some friends as favorites to see them here." : "Try adjusting your search.")
-                    } actions: {
-                        if showFavoritesOnly {
-                            Button("Show All Friends") {
-                                withAnimation {
-                                    showFavoritesOnly = false
-                                }
-                            }
-                            .buttonStyle(.borderedProminent)
-                        }
-                    }
-                }
-            }
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity)
+            .background(.blue.opacity(0.1))
+            .background(.ultraThinMaterial)
+            .transition(.move(edge: .top).combined(with: .opacity))
+        }
+    }
+    
+    private func logPetsOnAppear() {
+        print("📊 ContentView appeared. Total pets: \(pets.count)")
+        for pet in pets {
+            print("  - \(pet.name) (phone: \(pet.phoneNumber))")
         }
     }
 }
@@ -531,4 +610,74 @@ struct PetDropDelegate: DropDelegate {
 #Preview("No Data") {
     ContentView()
         .modelContainer(for: Pet.self, inMemory: true)
+}
+
+// MARK: - Flow Layout for Dynamic Card Sizing
+
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 16
+    
+    struct Cache {
+        var frames: [CGRect] = []
+        var totalSize: CGSize = .zero
+    }
+    
+    func makeCache(subviews: Subviews) -> Cache {
+        Cache()
+    }
+    
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout Cache) -> CGSize {
+        let result = calculateLayout(in: proposal.replacingUnspecifiedDimensions().width, subviews: subviews)
+        cache.frames = result.frames
+        cache.totalSize = result.size
+        return result.size
+    }
+    
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Cache) {
+        // Recalculate if cache is empty or stale
+        if cache.frames.count != subviews.count {
+            let result = calculateLayout(in: bounds.width, subviews: subviews)
+            cache.frames = result.frames
+            cache.totalSize = result.size
+        }
+        
+        for (index, subview) in subviews.enumerated() {
+            guard index < cache.frames.count else { continue }
+            let frame = cache.frames[index]
+            subview.place(
+                at: CGPoint(x: bounds.minX + frame.minX, y: bounds.minY + frame.minY),
+                proposal: ProposedViewSize(frame.size)
+            )
+        }
+    }
+    
+    private func calculateLayout(in maxWidth: CGFloat, subviews: Subviews) -> (frames: [CGRect], size: CGSize) {
+        var frames: [CGRect] = []
+        var currentX: CGFloat = 0
+        var currentY: CGFloat = 0
+        var lineHeight: CGFloat = 0
+        var maxX: CGFloat = 0
+        
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            
+            // If this card would exceed the line width, move to next line
+            if currentX + size.width > maxWidth && currentX > 0 {
+                currentX = 0
+                currentY += lineHeight + spacing
+                lineHeight = 0
+            }
+            
+            let frame = CGRect(origin: CGPoint(x: currentX, y: currentY), size: size)
+            frames.append(frame)
+            
+            currentX += size.width + spacing
+            lineHeight = max(lineHeight, size.height)
+            maxX = max(maxX, currentX - spacing)
+        }
+        
+        let finalHeight = currentY + lineHeight
+        let totalSize = CGSize(width: maxX, height: finalHeight)
+        return (frames, totalSize)
+    }
 }

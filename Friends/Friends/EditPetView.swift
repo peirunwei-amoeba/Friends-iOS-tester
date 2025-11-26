@@ -29,118 +29,13 @@ struct EditPetView: View {
     
     var body: some View {
         Form {
-            // MARK: - IMAGE
-            if let imageData = pet.photo {
-                if let image = UIImage(data: imageData) {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 250, height: 250)
-                        .clipShape(Circle())
-                        .frame(maxWidth: .infinity)
-                        .padding(.top)
-                    
-                }
-            } else {
-                // Show initials with colored circular background - matching ContentView style
-                InitialsProfileView(name: pet.name, size: 250)
-                    .frame(maxWidth: .infinity)
-                    .padding(.top)
-            }
-            // MARK: - PHOTO PICKER
-            PhotosPicker(selection: $photosPickerItem, matching: .images) {
-                HStack {
-                    Image(systemName: "photo.badge.plus")
-                        .foregroundStyle(.tint)
-                    Text("Select a Photo")
-                }
-                .frame(maxWidth: .infinity)
-            }
-            .listRowSeparator(.hidden)
-            
-            // MARK: - CONTACT PICKER BUTTON
-            Button {
-                showingContactPicker = true
-            } label: {
-                HStack {
-                    Image(systemName: "person.crop.circle.badge.plus")
-                        .foregroundStyle(.tint)
-                    Text("Import from Contacts")
-                }
-                .frame(maxWidth: .infinity)
-            }
-            .listRowSeparator(.hidden)
-            
-            // MARK: - TEXT FIELD
-            TextField("Name", text: $pet.name)
-                .textFieldStyle(.automatic)
-                .font(.largeTitle.weight(.light))
-                .padding(.vertical)
-                .padding(.horizontal, 16)
-                .background(
-                    Capsule()
-                        .fill(.background)
-                        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
-                )
-                .listRowSeparator(.hidden)
-                .focused($focusedField, equals: .name)
-                .submitLabel(.next)
-                .onSubmit {
-                    focusedField = .phoneNumber
-                }
-            
-            // MARK: - PHONE NUMBER
-            TextField("Phone Number (Optional)", text: $pet.phoneNumber)
-                .textFieldStyle(.automatic)
-                .font(.title3)
-                .keyboardType(.phonePad)
-                .padding(.vertical, 12)
-                .padding(.horizontal, 16)
-                .background(
-                    Capsule()
-                        .fill(.background)
-                        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
-                )
-                .listRowSeparator(.hidden)
-                .focused($focusedField, equals: .phoneNumber)
-            
-            // MARK: - BUTTON
-            Button {
-                // Dismiss keyboard first
-                focusedField = nil
-                
-                // Explicitly save the context
-                do {
-                    try modelContext.save()
-                    print("Successfully saved pet: \(pet.name)")
-                } catch {
-                    print("Error saving context: \(error)")
-                }
-                
-                dismiss()
-            } label: {
-                Text("Save")
-                    .font(.title3.weight(.medium))
-                    .padding(8)
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .listRowSeparator(.hidden)
-            .shadow(
-                color: pet.name != originalName ? .black.opacity(0.2) : .clear,
-                radius: pet.name != originalName ? 8 : 0,
-                x: 0,
-                y: pet.name != originalName ? 4 : 0
-            )
-            .animation(.easeInOut(duration: 0.3), value: pet.name != originalName)
-            //.disabled(pet.name == originalName)
-            
-            // Add bottom spacer for better scrolling experience
-            Color.clear
-                .frame(height: 100)
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-            
+            profileImageSection
+            photoPickerSection
+            contactPickerSection
+            nameFieldSection
+            phoneNumberFieldSection
+            saveButtonSection
+            bottomSpacerSection
         }
         .scrollContentBackground(.hidden)
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
@@ -153,9 +48,19 @@ struct EditPetView: View {
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button("Cancel") {
-                    // If this is a new pet with default name, delete it
-                    if pet.name == "Best Friend" && originalName == "Best Friend" {
+                    // Only delete if this is a brand new, unmodified pet
+                    if pet.name == "Best Friend" && 
+                       originalName == "Best Friend" && 
+                       pet.phoneNumber.isEmpty &&
+                       pet.photo == nil {
+                        print("🗑️ Deleting unmodified new pet")
                         modelContext.delete(pet)
+                    } else {
+                        print("↩️ Canceling changes, keeping pet: \(pet.name)")
+                        // If pet was modified, revert changes
+                        if originalName != pet.name {
+                            pet.name = originalName
+                        }
                     }
                     dismiss()
                 }
@@ -179,6 +84,127 @@ struct EditPetView: View {
         .sheet(isPresented: $showingContactPicker) {
             ContactPicker(pet: pet)
         }
+    }
+    
+    // MARK: - View Components
+    
+    @ViewBuilder
+    private var profileImageSection: some View {
+        if let imageData = pet.photo {
+            if let image = UIImage(data: imageData) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 250, height: 250)
+                    .clipShape(Circle())
+                    .frame(maxWidth: .infinity)
+                    .padding(.top)
+            }
+        } else {
+            // Show initials with colored circular background - matching ContentView style
+            InitialsProfileView(name: pet.name, size: 250)
+                .frame(maxWidth: .infinity)
+                .padding(.top)
+        }
+    }
+    
+    private var photoPickerSection: some View {
+        PhotosPicker(selection: $photosPickerItem, matching: .images) {
+            HStack {
+                Image(systemName: "photo.badge.plus")
+                    .foregroundStyle(.tint)
+                Text("Select a Photo")
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .listRowSeparator(.hidden)
+    }
+    
+    private var contactPickerSection: some View {
+        Button {
+            showingContactPicker = true
+        } label: {
+            HStack {
+                Image(systemName: "person.crop.circle.badge.plus")
+                    .foregroundStyle(.tint)
+                Text("Import from Contacts")
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .listRowSeparator(.hidden)
+    }
+    
+    private var nameFieldSection: some View {
+        TextField("Name", text: $pet.name)
+            .textFieldStyle(.automatic)
+            .font(.largeTitle.weight(.light))
+            .padding(.vertical)
+            .padding(.horizontal, 16)
+            .background(
+                Capsule()
+                    .fill(.background)
+                    .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+            )
+            .listRowSeparator(.hidden)
+            .focused($focusedField, equals: .name)
+            .submitLabel(.next)
+            .onSubmit {
+                focusedField = .phoneNumber
+            }
+    }
+    
+    private var phoneNumberFieldSection: some View {
+        TextField("Phone Number (Optional)", text: $pet.phoneNumber)
+            .textFieldStyle(.automatic)
+            .font(.title3)
+            .keyboardType(.phonePad)
+            .padding(.vertical, 12)
+            .padding(.horizontal, 16)
+            .background(
+                Capsule()
+                    .fill(.background)
+                    .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+            )
+            .listRowSeparator(.hidden)
+            .focused($focusedField, equals: .phoneNumber)
+    }
+    
+    private var saveButtonSection: some View {
+        Button {
+            // Dismiss keyboard first
+            focusedField = nil
+            
+            // Explicitly save the context
+            do {
+                try modelContext.save()
+                print("Successfully saved pet: \(pet.name)")
+            } catch {
+                print("Error saving context: \(error)")
+            }
+            
+            dismiss()
+        } label: {
+            Text("Save")
+                .font(.title3.weight(.medium))
+                .padding(8)
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.borderedProminent)
+        .listRowSeparator(.hidden)
+        .shadow(
+            color: pet.name != originalName ? .black.opacity(0.2) : .clear,
+            radius: pet.name != originalName ? 8 : 0,
+            x: 0,
+            y: pet.name != originalName ? 4 : 0
+        )
+        .animation(.easeInOut(duration: 0.3), value: pet.name != originalName)
+    }
+    
+    private var bottomSpacerSection: some View {
+        Color.clear
+            .frame(height: 100)
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
     }
 }
 
@@ -241,14 +267,27 @@ extension UIFont {
     }
 }
 
-#Preview {
+#Preview("With Phone Number") {
     NavigationStack {
         do {
             let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
             let container = try ModelContainer(for: Pet.self, configurations: configuration)
-            let sampleData = Pet(name: "Daisy")
-                                                                     
+            let sampleData = Pet(name: "Daisy", phoneNumber: "(555) 123-4567")
             
+            return EditPetView(pet: sampleData)
+                .modelContainer(container)
+        } catch {
+            fatalError("Could not load preview data. \(error.localizedDescription)")
+        }
+    }
+}
+
+#Preview("Without Phone Number") {
+    NavigationStack {
+        do {
+            let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+            let container = try ModelContainer(for: Pet.self, configurations: configuration)
+            let sampleData = Pet(name: "Charlie")
             
             return EditPetView(pet: sampleData)
                 .modelContainer(container)
