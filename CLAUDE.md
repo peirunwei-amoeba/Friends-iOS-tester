@@ -1,6 +1,7 @@
-# Friends-iOS-tester
-This project is licensed under the Polyform Noncommercial License 1.0.0.
-See the LICENSE file for details.
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 ## Project Overview
 
 Friends iOS is a SwiftUI-based iOS application that helps users manage a contact list of friends with photos, phone numbers, and other contact information. The app is a fully-native iOS application using modern Swift frameworks (SwiftUI, SwiftData) with no external dependencies.
